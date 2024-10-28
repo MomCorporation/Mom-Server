@@ -1,8 +1,12 @@
-import AdminJS, { SESSION_INITIALIZE } from "adminjs";
-import AdminJSFastify from "@adminjs/fastify";
-import * as AdminJSMongoose from "@adminjs/mongoose";
+// setup.js
+import Fastify from 'fastify';
+import AdminJS from 'adminjs';
+import AdminJSFastify from '@adminjs/fastify';
+import * as AdminJSMongoose from '@adminjs/mongoose';
+import fastifySession from '@fastify/session';
+import fastifyCookie from '@fastify/cookie';
 import * as Models from "../models/index.js";
-import { authenticate, COOKIE_PASSWORD, sessionStore } from "./config.js";
+import { authenticate, COOKIE_PASSWORD, sessionStore, sessionConfig } from "./config.js";
 import { dark, light, noSidebar } from "@adminjs/themes";
 
 AdminJS.registerAdapter(AdminJSMongoose);
@@ -46,7 +50,6 @@ export const admin = new AdminJS({
       resource: Models.Counter,
     },
   ],
-
   branding: {
     companyName: "Mom Corporation",
     withMadeWithLove: false,
@@ -60,44 +63,45 @@ export const admin = new AdminJS({
 });
 
 export const buildAdminRouter = async (app) => {
-  // Set session configuration
-  const sessionConfig = {
-    store: sessionStore,
-    saveUninitialized: true,
-    secret: COOKIE_PASSWORD,
-    resave: false,
-    cookie: {
-      httpOnly: process.env.NODE_ENV === 'production',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',  // Add this
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-    name: 'adminjs'
-  };
+  try {
+    // Ensure app is a Fastify instance
+    if (!app || typeof app.register !== 'function') {
+      app = Fastify({ 
+        logger: true,
+        trustProxy: process.env.NODE_ENV === 'production'
+      });
+    }
 
-  // Authentication configuration
-  const authConfig = process.env.NODE_ENV === 'production' ? {
-    authenticate,
-    cookiePassword: COOKIE_PASSWORD,
-    cookieName: "adminjs",
-    // maxRetries: 3,  // Add retry limit
-    session: sessionConfig  // Pass session config directly
-  } : false;
+    // Register required plugins
+    await app.register(fastifyCookie);
+    await app.register(fastifySession, {
+      secret: COOKIE_PASSWORD,
+      store: sessionStore,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      }
+    });
 
-  // Add session handling middleware
-  app.register(import('@fastify/session'), sessionConfig);
-  app.register(import('@fastify/cookie'));
+    // Authentication configuration
+    const adminRouter = await AdminJSFastify.buildRouter(admin, {
+      authenticate,
+      cookiePassword: COOKIE_PASSWORD,
+      cookieName: 'adminjs',
+    }, app);
 
-  // Build the AdminJS router with modified config
-  await AdminJSFastify.buildRouter(
-    admin,
-    authConfig,
-    app
-  );
+    // Add error handling
+    app.setErrorHandler((error, request, reply) => {
+      console.error('AdminJS Error:', error);
+      reply.status(500).send({ error: 'Internal Server Error' });
+    });
 
-  // Add error handling
-  app.setErrorHandler((error, request, reply) => {
-    console.error('AdminJS Error:', error);
-    reply.status(500).send({ error: 'Internal Server Error' });
-  });
+    return adminRouter;
+  } catch (error) {
+    console.error('Error building admin router:', error);
+    throw error;
+  }
 };
