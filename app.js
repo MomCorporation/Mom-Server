@@ -29,7 +29,7 @@ const start = async()=>{
 
     try {
         await app.listen({ 
-            port: port, 
+            port: PORT, 
             host: "0.0.0.0"  // Required to accept all incoming connections
         });
         console.log(`Server running on port ${port}`);

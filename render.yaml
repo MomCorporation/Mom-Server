@@ -14,9 +14,7 @@ services:
         sync: false
       - key: COOKIE_PASSWORD
         sync: false
-      - key: JWT_SECRET
-        sync: false
-    healthCheckPath: /
+    healthCheckPath: /healthcheck
     autoDeploy: true
     disk:
       name: tmp
