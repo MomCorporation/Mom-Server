@@ -50,31 +50,54 @@ export const admin = new AdminJS({
   branding: {
     companyName: "Mom Corporation",
     withMadeWithLove: false,
-    // favicon: imglink or path
-    // logo: imglink or path
   },
   defaultTheme: dark.id,
   availableThemes: [dark, light, noSidebar],
   rootPath: "/admin",
+  env: {
+    isProduction: process.env.NODE_ENV === 'production',
+  }
 });
 
 export const buildAdminRouter = async (app) => {
-  await AdminJSFastify.buildAuthenticatedRouter(
-    admin,
-    {
-      authenticate,
-      cookiePassword: COOKIE_PASSWORD,
-      cookieName: "adminjs",
+  // Set session configuration
+  const sessionConfig = {
+    store: sessionStore,
+    saveUninitialized: true,
+    secret: COOKIE_PASSWORD,
+    resave: false,
+    cookie: {
+      httpOnly: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',  // Add this
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
-    app,
-    {
-      store: sessionStore,
-      saveUnintialized: true,
-      secret: COOKIE_PASSWORD,
-      cookie: {
-        httpOnly: process.env.NODE_ENV === "production",
-        secure: process.env.NODE_ENV === "production",
-      },
-    }
+    name: 'adminjs'
+  };
+
+  // Authentication configuration
+  const authConfig = process.env.NODE_ENV === 'production' ? {
+    authenticate,
+    cookiePassword: COOKIE_PASSWORD,
+    cookieName: "adminjs",
+    // maxRetries: 3,  // Add retry limit
+    session: sessionConfig  // Pass session config directly
+  } : false;
+
+  // Add session handling middleware
+  app.register(import('@fastify/session'), sessionConfig);
+  app.register(import('@fastify/cookie'));
+
+  // Build the AdminJS router with modified config
+  await AdminJSFastify.buildRouter(
+    admin,
+    authConfig,
+    app
   );
+
+  // Add error handling
+  app.setErrorHandler((error, request, reply) => {
+    console.error('AdminJS Error:', error);
+    reply.status(500).send({ error: 'Internal Server Error' });
+  });
 };
