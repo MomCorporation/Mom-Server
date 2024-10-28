@@ -2,7 +2,6 @@ import 'dotenv/config';
 import fastifySession from '@fastify/session';
 import ConnectMongoDBSession from 'connect-mongodb-session';
 import { Admin } from "../models/index.js";
-import bcrypt from 'bcrypt'; // Add this for password hashing
 
 const MongoDBStore = ConnectMongoDBSession(fastifySession);
 
