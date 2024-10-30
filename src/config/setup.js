@@ -36,7 +36,6 @@ export const admin = new AdminJS({
     { resource: Models.Order },
     { resource: Models.Counter },
   ],
-
   branding: {
     companyName: "Blinkit",
     withMadeWithLove: false,
@@ -60,12 +59,16 @@ export const buildAdminRouter = async (app) => {
     app,
     {
       store: sessionStore,
-      saveUnintialized: true,
+      saveUninitialized: true,
       secret: COOKIE_PASSWORD,
       cookie: {
-        httpOnly: process.env.NODE_ENV === "production",
+        httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-      },
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        domain: process.env.NODE_ENV === "production" 
+          ? `.render.com`  // This allows cookies to work on Render
+          : undefined
+      }
     }
   );
 };
