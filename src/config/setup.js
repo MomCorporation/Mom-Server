@@ -37,11 +37,11 @@ export const admin = new AdminJS({
     { resource: Models.Counter },
   ],
   branding: {
-    companyName: "Blinkit",
+    companyName: "Moms Grocery",
     withMadeWithLove: false,
     favicon:
-      "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
-    logo: "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
+    "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
+  logo: "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
   },
   defaultTheme: dark.id,
   availableThemes: [dark, light, noSidebar],
@@ -49,26 +49,32 @@ export const admin = new AdminJS({
 });
 
 export const buildAdminRouter = async (app) => {
-  await AdminJSFastify.buildAuthenticatedRouter(
-    admin,
-    {
-      authenticate,
-      cookiePassword: COOKIE_PASSWORD,
-      cookieName: "adminjs",
-    },
-    app,
-    {
-      store: sessionStore,
-      saveUninitialized: true,
-      secret: COOKIE_PASSWORD,
-      cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        domain: process.env.NODE_ENV === "production" 
-          ? `.render.com`  // This allows cookies to work on Render
-          : undefined
-      }
+  const sessionOptions = {
+    store: sessionStore,
+    saveUninitialized: false,
+    secret: COOKIE_PASSWORD,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     }
-  );
+  };
+
+  try {
+    await AdminJSFastify.buildAuthenticatedRouter(
+      admin,
+      {
+        authenticate,
+        cookiePassword: COOKIE_PASSWORD,
+        cookieName: "adminjs",
+      },
+      app,
+      sessionOptions
+    );
+    console.log("AdminJS router built successfully");
+  } catch (error) {
+    console.error("Error building AdminJS router:", error);
+    throw error;
+  }
 };
