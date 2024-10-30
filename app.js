@@ -1,6 +1,7 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from '@fastify/cors';
+import fastifyCookie from '@fastify/cookie';
 import { connectDB } from "./src/config/connect.js";
 import { PORT } from "./src/config/config.js";
 import { admin, buildAdminRouter } from "./src/config/setup.js";
@@ -15,25 +16,26 @@ const start = async () => {
       maxParamLength: 5000,
     });
 
-    // Register @fastify/cors
+    // Register cookie plugin
+    await app.register(fastifyCookie);
+
+    // Register CORS
     await app.register(cors, {
-      origin: process.env.NODE_ENV === 'production' 
-        ? [
-            'https://your-frontend-domain.com', // Replace with your frontend domain
-            /\.render\.com$/ // Allow Render domains
-          ]
-        : '*',
+      origin: true,
       credentials: true,
       methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
     });
 
+    // Add debug route
+    app.get('/', async (request, reply) => {
+      return { status: 'ok', message: 'Server is running' };
+    });
+
     // Register Socket.IO
     app.register(fastifySocketIO, {
       cors: {
-        origin: process.env.NODE_ENV === 'production' 
-          ? ['https://your-frontend-domain.com'] // Replace with your frontend domain
-          : '*',
+        origin: "*",
         credentials: true
       },
       pingInterval: 10000,
@@ -41,18 +43,12 @@ const start = async () => {
       transports: ["websocket"],
     });
 
-    // Health check endpoint
-    app.get('/healthcheck', async (request, reply) => {
-      return { status: 'ok' };
-    });
-
-    // Register API routes
+    // Register routes
     await registerRoutes(app);
 
     // Register AdminJS
     await buildAdminRouter(app);
 
-    // Configure server for production
     const host = '0.0.0.0';
     const port = process.env.PORT || PORT;
 
@@ -63,7 +59,7 @@ const start = async () => {
 
     console.log(
       `Server running on ${process.env.NODE_ENV === 'production' 
-        ? `https://${process.env.RENDER_EXTERNAL_URL || 'your-app.render.com'}`
+        ? `https://${process.env.RENDER_EXTERNAL_URL || 'https://mom-server.onrender.com'}`
         : 'http://localhost'
       }:${port}${admin.options.rootPath}`
     );
