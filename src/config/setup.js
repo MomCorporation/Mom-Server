@@ -36,12 +36,11 @@ export const admin = new AdminJS({
     { resource: Models.Order },
     { resource: Models.Counter },
   ],
-  branding: {
+ branding: {
     companyName: "Moms Grocery",
     withMadeWithLove: false,
-    favicon:
-    "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
-  logo: "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
+    favicon: "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
+    logo: "https://res.cloudinary.com/dponzgerb/image/upload/v1722852076/s32qztc3slzqukdletgj.png",
   },
   defaultTheme: dark.id,
   availableThemes: [dark, light, noSidebar],
@@ -62,16 +61,11 @@ export const buildAdminRouter = async (app) => {
   };
 
   try {
-    await AdminJSFastify.buildAuthenticatedRouter(
-      admin,
-      {
-        authenticate,
-        cookiePassword: COOKIE_PASSWORD,
-        cookieName: "adminjs",
-      },
-      app,
-      sessionOptions
-    );
+    await AdminJSFastify.buildRouter(admin, app, {
+      secret: COOKIE_PASSWORD,
+      authenticate,
+      sessionOptions,
+    });
     console.log("AdminJS router built successfully");
   } catch (error) {
     console.error("Error building AdminJS router:", error);
