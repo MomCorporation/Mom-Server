@@ -11,20 +11,24 @@ import fastifySocketIO from "fastify-socket.io";
 const start = async () => {
   try {
     await connectDB(process.env.MONGO_URI);
+    
     const app = Fastify({
       logger: true,
       maxParamLength: 5000,
     });
 
-    // Register cookie plugin
-    await app.register(fastifyCookie);
-
-    // Register CORS
+    // Register plugins in the correct order
     await app.register(cors, {
       origin: true,
       credentials: true,
       methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+    });
+
+    // Register cookie plugin ONCE
+    await app.register(fastifyCookie, {
+      secret: process.env.COOKIE_PASSWORD, // Add your cookie secret
+      hook: 'onRequest',
     });
 
     // Add debug route
@@ -33,7 +37,7 @@ const start = async () => {
     });
 
     // Register Socket.IO
-    app.register(fastifySocketIO, {
+    await app.register(fastifySocketIO, {
       cors: {
         origin: "*",
         credentials: true
@@ -43,38 +47,38 @@ const start = async () => {
       transports: ["websocket"],
     });
 
-    // Register routes
+    // Register routes before AdminJS
     await registerRoutes(app);
 
-    // Register AdminJS
+    // Register AdminJS last
     await buildAdminRouter(app);
 
     const host = '0.0.0.0';
     const port = process.env.PORT || PORT;
-
-    await app.listen({ 
-      port, 
+    
+    await app.listen({
+      port,
       host
     });
 
     console.log(
-      `Server running on ${process.env.NODE_ENV === 'production' 
+      `Server running on ${process.env.NODE_ENV === 'production'
         ? `https://${process.env.RENDER_EXTERNAL_URL || 'https://mom-server.onrender.com'}`
         : 'http://localhost'
       }:${port}${admin.options.rootPath}`
     );
 
     // Socket.IO setup
-    app.ready().then(() => {
-      app.io.on("connection", (socket) => {
-        console.log("A User Connected ✅");
-        socket.on("joinRoom", (orderId) => {
-          socket.join(orderId);
-          console.log(` 🔴 User Joined room ${orderId}`);
-        });
-        socket.on("disconnect", () => {
-          console.log("User Disconnected ❌");
-        });
+    app.io.on("connection", (socket) => {
+      console.log("A User Connected ✅");
+      
+      socket.on("joinRoom", (orderId) => {
+        socket.join(orderId);
+        console.log(` 🔴 User Joined room ${orderId}`);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("User Disconnected ❌");
       });
     });
 
